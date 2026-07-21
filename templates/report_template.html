@@ -10,22 +10,30 @@
         .company-tag { float: right; text-align: right; font-size: 9pt; color: #cbd5e1; }
         .info-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 16px; }
         .info-card h3 { margin: 0 0 10px 0; font-size: 11pt; color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 4px; }
-        .info-label { color: #64748b; font-weight: 600; width: 130px; display: inline-block; }
+        .info-label { color: #64748b; font-weight: 600; width: 140px; display: inline-block; }
         .section-title { font-size: 12pt; font-weight: bold; color: #0f172a; margin: 20px 0 10px 0; padding-left: 10px; border-left: 4px solid #0284c7; }
         table.data-table { width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #cbd5e1; margin-bottom: 20px; }
         table.data-table th { background-color: #1e293b; color: #ffffff; padding: 8px 10px; font-size: 9pt; text-align: left; }
         table.data-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 9pt; }
-        .badge-success { background-color: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
-        .badge-warning { background-color: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        table.data-table tr:nth-child(even) { background-color: #f8fafc; }
+        .badge-success { background-color: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 8.5pt; }
+        .badge-danger { background-color: #fee2e2; color: #dc2626; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 8.5pt; }
+        .badge-warning { background-color: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 8.5pt; }
+        .badge-info { background-color: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 8.5pt; }
         .formula-box { background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; margin-bottom: 20px; color: #0369a1; font-size: 8.5pt; }
         .signature-table { width: 100%; margin-top: 40px; border-collapse: collapse; }
         .signature-table td { width: 50%; text-align: center; vertical-align: top; }
         .signature-space { height: 60px; }
         .graph-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; text-align: center; margin-bottom: 20px; }
+        .sla-highlight { font-size: 14pt; font-weight: bold; }
+        .sla-passed { color: #15803d; }
+        .sla-failed { color: #dc2626; }
+        .footer-note { font-size: 7.5pt; color: #94a3b8; text-align: center; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
     </style>
 </head>
 <body>
 
+    <!-- Header Banner -->
     <div class="header-banner">
         <div class="company-tag">
             <strong>{{ company_name }}</strong><br>
@@ -36,6 +44,7 @@
         <div style="font-size: 10pt; color: #94a3b8;">Periode Layanan: {{ period }}</div>
     </div>
 
+    <!-- Informasi Pelanggan & Layanan -->
     <div class="info-card">
         <h3>Informasi Pelanggan & Layanan</h3>
         <table style="width: 100%;">
@@ -54,6 +63,7 @@
         </table>
     </div>
 
+    <!-- Section 1: Ringkasan Performa -->
     <div class="section-title">1. Ringkasan Performa Layanan (Service Metrics)</div>
     <table class="data-table">
         <thead>
@@ -68,32 +78,62 @@
             <tr>
                 <td><strong>Service Availability</strong></td>
                 <td>&ge; {{ target_sla }}%</td>
-                <td><strong>{{ actual_sla }}%</strong></td>
-                <td><span class="badge-success">{{ status }}</span></td>
+                <td>
+                    <span class="sla-highlight {% if sla_passed %}sla-passed{% else %}sla-failed{% endif %}">
+                        {{ actual_sla }}%
+                    </span>
+                </td>
+                <td>
+                    {% if sla_passed %}
+                        <span class="badge-success">&#10003; {{ status }}</span>
+                    {% else %}
+                        <span class="badge-danger">&#10007; {{ status }}</span>
+                    {% endif %}
+                </td>
             </tr>
             <tr>
-                <td><strong>Actual Unplanned Downtime</strong></td>
+                <td><strong>Unplanned Downtime</strong></td>
                 <td>-</td>
                 <td><strong>{{ downtime_str }}</strong></td>
-                <td>-</td>
+                <td>
+                    {% if total_unplanned_downtime == 0 %}
+                        <span class="badge-success">Zero Downtime</span>
+                    {% elif total_unplanned_downtime <= 60 %}
+                        <span class="badge-warning">Minor</span>
+                    {% else %}
+                        <span class="badge-danger">Major</span>
+                    {% endif %}
+                </td>
             </tr>
+            {% if total_planned_downtime > 0 %}
+            <tr>
+                <td><strong>Planned Maintenance</strong></td>
+                <td>-</td>
+                <td><strong>{{ total_planned_downtime }} Menit</strong></td>
+                <td><span class="badge-info">Scheduled</span></td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 
+    <!-- Formula Box -->
     <div class="formula-box">
         <strong>Perhitungan Uptime SLA:</strong><br>
-        [ (43.200 Menit - {{ total_unplanned_downtime }} Menit) / 43.200 Menit ] &times; 100% = <strong>{{ actual_sla }}%</strong>
+        Jumlah Hari Bulan Ini: <strong>{{ days_in_month }} Hari</strong> = <strong>{{ total_minutes_month }}</strong> Menit<br>
+        [ ({{ total_minutes_month }} Menit - {{ total_unplanned_downtime }} Menit) / {{ total_minutes_month }} Menit ] &times; 100% = <strong>{{ actual_sla }}%</strong><br>
+        <em>* Hanya Unplanned Downtime yang dihitung. Scheduled Maintenance tidak mempengaruhi SLA.</em>
     </div>
 
+    <!-- Section 2: Outage Log -->
     <div class="section-title">2. Catatan Insiden & Maintenance Log</div>
     <table class="data-table">
         <thead>
             <tr>
                 <th style="width: 5%;">No</th>
                 <th style="width: 25%;">Tanggal & Waktu</th>
-                <th style="width: 15%;">Durasi</th>
-                <th style="width: 15%;">Kategori</th>
-                <th style="width: 40%;">Keterangan</th>
+                <th style="width: 12%;">Durasi</th>
+                <th style="width: 13%;">Kategori</th>
+                <th style="width: 45%;">Keterangan</th>
             </tr>
         </thead>
         <tbody>
@@ -103,22 +143,32 @@
                     <td>{{ log.no }}</td>
                     <td>{{ log.date }}</td>
                     <td>{{ log.duration }} Menit</td>
-                    <td><span class="badge-warning">{{ log.category }}</span></td>
+                    <td>
+                        {% if log.category == 'Unplanned' %}
+                            <span class="badge-warning">{{ log.category }}</span>
+                        {% else %}
+                            <span class="badge-info">{{ log.category }}</span>
+                        {% endif %}
+                    </td>
                     <td>{{ log.desc }}</td>
                 </tr>
                 {% endfor %}
             {% else %}
                 <tr>
-                    <td colspan="5" style="text-align: center; color: #15803d;"><strong>TIDAK ADA OUTAGE (100% UPTIME)</strong></td>
+                    <td colspan="5" style="text-align: center; color: #15803d; padding: 15px;">
+                        <strong>&#10003; TIDAK ADA OUTAGE &mdash; 100% UPTIME</strong>
+                    </td>
                 </tr>
             {% endif %}
         </tbody>
     </table>
 
+    <!-- Section 3: Grafik -->
     <div class="section-title">3. Lampiran Grafis Pemantauan (LibreNMS)</div>
     <div class="graph-box">
         {% if graph_base64 %}
-            <img src="data:image/png;base64,{{ graph_base64 }}" style="width: 100%; max-height: 280px; object-fit: contain;">
+            <img src="data:{{ graph_mime }};base64,{{ graph_base64 }}" style="width: 100%; max-height: 280px; object-fit: contain;">
+            <div style="font-size: 7.5pt; color: #94a3b8; margin-top: 5px;">Grafik monitoring {{ days_in_month }} hari &mdash; Periode {{ period }}</div>
         {% else %}
             <div style="padding: 25px; color: #94a3b8; font-style: italic;">
                 (Tidak ada grafik lampiran yang di-upload untuk periode ini)
@@ -126,6 +176,7 @@
         {% endif %}
     </div>
 
+    <!-- Tanda Tangan -->
     <table class="signature-table">
         <tr>
             <td>
@@ -142,6 +193,12 @@
             </td>
         </tr>
     </table>
+
+    <!-- Footer -->
+    <div class="footer-note">
+        Dokumen ini dibuat secara otomatis oleh SLA Generator &mdash; {{ company_name }} NOC Division<br>
+        Generated: {{ generated_at }} | Document ID: {{ doc_id }}
+    </div>
 
 </body>
 </html>
